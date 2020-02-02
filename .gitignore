@@ -2,3 +2,4 @@
 *.click
 creds
 files/*
+docker-build/*
