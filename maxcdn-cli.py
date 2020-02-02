@@ -7,7 +7,16 @@ import os
 import click
 
 # MaxCDN("alias", "consumer_key", "consumer_secret")
-api = MaxCDN("","","")
+#api = MaxCDN("","","")
+
+# make human readable, default suffix is 'bytes'
+# 
+def sizeOf(num, suffix='B'):
+    for unit in ['','K','M','G','T','P', 'E']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num,unit,suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Z', suffix)
 
 class Zone(object):
     #create zone
@@ -137,6 +146,27 @@ class Account(object):
         for field in response['data']['account']:
             table.add_row([ field, response['data']['account'][field]])
             
+        print(table)
+
+    def stats(self, reportType='', humanReadable=True):
+        table = PrettyTable(['key','value'])
+        response = api.get('/reports/stats.json')
+
+        if reportType != '' and humanReadable == True:
+            humanReadable = False
+            response = api.get('/reports/stats.json/'+str(reportType))
+           #@TODO: fix, now displays garbage data 
+            for count in range(0, len(response['data']['stats'])):
+                    for field in response['data']['stats'][count]:
+                        table.add_row([ response['data']['stats'][count][field], response['data']['stats'][count]['cache_hit']])
+        elif humanReadable == True:
+            for field in response['data']['stats']:
+                table.add_row([ field, sizeOf(float(response['data']['stats'][field]))])
+
+        if humanReadable != True and reportType == '':
+            for field in response['data']['stats']:
+                table.add_row([ field, response['data']['stats'][field]])
+
         print(table)
 
 class Cache(object):
