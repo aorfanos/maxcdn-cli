@@ -10,7 +10,7 @@ import click
 #api = MaxCDN("","","")
 
 # make human readable, default suffix is 'bytes'
-# 
+# courtesy of https://web.archive.org/web/20111010015624/http://blogmag.net/blog/read/38/Print_human_readable_file_size
 def sizeOf(num, suffix='B'):
     for unit in ['','K','M','G','T','P', 'E']:
         if abs(num) < 1024.0:
@@ -55,7 +55,6 @@ class Zone(object):
             api.delete("/zones/pull.json/"+str(zoneId))
             table.add_row(['Delete Zone', str(zoneId), zoneURL, 'Deleted'])
             print("Deleted zone "+str(zoneId)+" with URL "+zoneURL)
-
 
         print(table)
 
@@ -159,31 +158,44 @@ class Account(object):
             for count in range(0, len(response['data']['stats'])):
                     for field in response['data']['stats'][count]:
                         table.add_row([ response['data']['stats'][count][field], response['data']['stats'][count]['cache_hit']])
+        elif humanReadable != True and reportType == '':
+            for field in response['data']['stats']:
+                table.add_row([ field, response['data']['stats'][field]])
         elif humanReadable == True:
             for field in response['data']['stats']:
                 table.add_row([ field, sizeOf(float(response['data']['stats'][field]))])
-
-        if humanReadable != True and reportType == '':
-            for field in response['data']['stats']:
-                table.add_row([ field, response['data']['stats'][field]])
 
         print(table)
 
 class Cache(object):
 
-    def purge(self,zoneId, prettyPrint=False, silent=False):
-        api.purge(zoneId)
-        table = PrettyTable(['Operation', 'Origin URL', 'State'])
+    def purge(self,zoneId, excludeFile='', prettyPrint=False, silent=False): 
         url = Zone().info(str(zoneId),0,outputField="url")
-        table.add_row(['Purge CDN Cache',url,"Success"])
+        table = PrettyTable(['Operation', 'Origin URL', 'State']) # table for full cache purge
+        tablef = PrettyTable(['Zone','Path','State']) # table for file purge
         
-        if prettyPrint == True:
+        if excludeFile != '':
+            files = []
+            files.append(str(excludeFile).split(' '))
+            api.purge(zoneId, files)
+            if silent == True:
+                exit(0)
+            else:
+                for count in range(0, len(files)):
+                    for _file in files: #@TODO: currently breaks (one line per purge no matter how many files)
+                        tablef.add_row([zoneId, _file[count], 'Purged'])
+                    return(tablef)
+        elif prettyPrint == True:
+            silent = False
+            table.add_row(['Purge CDN Cache',url,"Success"])
             return(table)
         elif silent == True:
             prettyPrint = False
             exit(0)
         else:
             prettyPrint = True
+            api.purge(zoneId)
+            table.add_row(['Purge CDN Cache',url,"Success"])
             return(table)
 
 class SSL(object):
